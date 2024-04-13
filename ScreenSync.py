@@ -12,12 +12,6 @@ from pydantic import BaseModel, Field
 DEBUG = False
 UDP_PORT = 4003
 MAX_LED_COLOR_GRADIENT = 10
-# MAX_LED_COLOR_GRADIENT = 4
-
-
-def show_image(image: np.ndarray):
-    img = Image.fromarray(image.astype(np.uint8), "RGB")
-    img.show()
 
 
 class PowerState(Enum):
@@ -25,7 +19,6 @@ class PowerState(Enum):
     ON = 1
 
 
-# Pydantic Models
 class Color(BaseModel):
     r: int = Field(default=205, ge=0, le=255)
     g: int = Field(default=125, ge=0, le=255)
@@ -93,7 +86,8 @@ class GoveeLightDevice:
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.sendto(message.encode(), (self.ip, UDP_PORT))
-        # print(f"Command sent to {ip}: {message}")
+        if DEBUG:
+            print(f"Command sent to {self.ip}: {message}")
 
     def power_on(self):
         power_on_command = PowerCommand(data=PowerData(value=PowerState.ON))
@@ -143,6 +137,12 @@ class GoveeLightDevice:
     def _get_segment_color_data(
         self, list_of_colors: list[Color], gradient=True
     ) -> SegmentData:
+        """Returns the SegmentData object for the given list of colors.
+
+        The segment data is a base64 encoded string that represents the colors to be set.
+        I have no idea what the values for the first 4 bytes are.
+        I assume the 6th byte is the number of colors.
+        """
         gradient_flag = 1 if gradient else 0
         byte_array = [187, 0, 32, 176, gradient_flag, len(list_of_colors)]
 
@@ -189,7 +189,6 @@ def get_device_location_indices(
 
 def example_usage():
     default_color = Color(r=255, g=165, b=0)
-    # controller = LightController(["192.168.0.108", "192.168.0.248"])
     left_column_screen_indices = [(0, i) for i in range(MAX_LED_COLOR_GRADIENT)]
     left_column_device = GoveeLightDevice(
         "192.168.0.248", "Govee Light Left", left_column_screen_indices
@@ -358,7 +357,6 @@ def game_loop(devices: list[GoveeLightDevice]):
                 ]
                 device.set_segment_colors(color_data)
             frame_counter.update_and_print()
-            time.sleep(1 / 145)  # 144 Hz
             # write to terminal a fps counter (but don't print it every frame, instead update it in place)
 
     except KeyboardInterrupt:
@@ -368,9 +366,6 @@ def game_loop(devices: list[GoveeLightDevice]):
             device.terminate_segment()
             time.sleep(0.5)
             device.power_off()
-
-
-np.take
 
 
 def run():
