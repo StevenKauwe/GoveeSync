@@ -6,12 +6,18 @@ from enum import Enum
 from typing import Union
 
 import numpy as np
-from PIL import ImageEnhance, ImageGrab
+from PIL import Image, ImageEnhance, ImageGrab
 from pydantic import BaseModel, Field
 
+DEBUG = False
 UDP_PORT = 4003
 MAX_LED_COLOR_GRADIENT = 10
 # MAX_LED_COLOR_GRADIENT = 4
+
+
+def show_image(image: np.ndarray):
+    img = Image.fromarray(image.astype(np.uint8), "RGB")
+    img.show()
 
 
 class PowerState(Enum):
@@ -21,9 +27,9 @@ class PowerState(Enum):
 
 # Pydantic Models
 class Color(BaseModel):
-    r: int = Field(..., ge=0, le=255)
-    g: int = Field(..., ge=0, le=255)
-    b: int = Field(..., ge=0, le=255)
+    r: int = Field(default=205, ge=0, le=255)
+    g: int = Field(default=125, ge=0, le=255)
+    b: int = Field(default=0, ge=0, le=255)
 
     @property
     def rgb(self):
@@ -151,7 +157,9 @@ class GoveeLightDevice:
         return SegmentData(pt=final_send_value)
 
 
-def get_column_indices(column_number: int):
+def get_device_location_indices(
+    column_indices: list[int] | None = None, row_indices: list[int] | None = None
+):
     """
     screen example for MAX_LED_COLOR_GRADIENT = 10
 
@@ -170,9 +178,12 @@ def get_column_indices(column_number: int):
 
     My device has index 0 at the bottom, so I need to reverse the row indices.
     """
-    column_indices = [column_number] * MAX_LED_COLOR_GRADIENT
-    row_indices = list(range(MAX_LED_COLOR_GRADIENT))[::-1]
-    screen_indices = [column_indices, row_indices]
+    if column_indices is None:
+        column_indices = list(range(MAX_LED_COLOR_GRADIENT))
+    if row_indices is None:
+        # light lamp colors are ordered from bottom to top
+        row_indices = list(range(MAX_LED_COLOR_GRADIENT)[::-1])
+    screen_indices = [row_indices, column_indices]
     return screen_indices
 
 
@@ -219,33 +230,117 @@ def example_usage():
 
 
 def capture_screen_and_process_colors() -> np.ndarray:
+    # Capture the entire screen
     screen_image = ImageGrab.grab()
+    resize_factor = 10
+
+    # Resize image to a manageable size that maintains the aspect ratio of 10x10 blocks
     resized_image = screen_image.resize(
-        (MAX_LED_COLOR_GRADIENT, MAX_LED_COLOR_GRADIENT)
+        (MAX_LED_COLOR_GRADIENT * resize_factor, MAX_LED_COLOR_GRADIENT * resize_factor)
     )
 
-    # Increase the saturation
+    # Increase the saturation by 1.5 times
     converter = ImageEnhance.Color(resized_image)
-    saturated_image = converter.enhance(1.5)
+    saturated_image = converter.enhance(2.5)
 
-    color_matrix = np.array(saturated_image).transpose(1, 0, 2)
+    # Convert image to numpy array for processing
+    color_matrix = np.array(saturated_image)
 
-    # Replace colors that are too dark
-    color_sums = color_matrix.sum(axis=2)
-    dark_colors = color_sums < 10
-    color_matrix[dark_colors] = [10, 10, 10]
+    # Reshape the array to (10, 10, 10, 10, 3) where each 10x10 block's pixels are separately accessible
+    color_matrix = color_matrix.reshape(
+        (
+            MAX_LED_COLOR_GRADIENT,
+            resize_factor,
+            MAX_LED_COLOR_GRADIENT,
+            resize_factor,
+            3,
+        )
+    )
 
-    return color_matrix
+    # I favor red > green > blue for the most "colorful pixel". Let's scale the colors accordingly
+    biased_color_matrix = color_matrix.copy()
+    biased_color_matrix[..., 0] *= 2
+    biased_color_matrix[..., 1] *= 1
+    biased_color_matrix[..., 2] *= 1
+
+    # Compute variance across each pixel to find the most "colorful" pixel
+    pixel_variances = np.var(biased_color_matrix, axis=4)
+
+    # Transpose the array so that the 10x10 blocks are along the last two axes
+    pixel_variances_transposed = pixel_variances.transpose(0, 2, 1, 3)
+
+    # Flatten the last two dimensions
+    pixel_variances_flattened = pixel_variances_transposed.reshape(
+        MAX_LED_COLOR_GRADIENT, MAX_LED_COLOR_GRADIENT, -1
+    )
+
+    # Compute argmax over the flattened dimension
+    max_colorful_indices = np.unravel_index(
+        pixel_variances_flattened.argmax(axis=2), (resize_factor, resize_factor)
+    )
+
+    # For each block, get the most colorful pixel
+    most_colorful_pixels = color_matrix[
+        np.arange(MAX_LED_COLOR_GRADIENT)[:, None],
+        max_colorful_indices[0],
+        np.arange(MAX_LED_COLOR_GRADIENT),
+        max_colorful_indices[1],
+    ]
+
+    most_colorful_pixels = most_colorful_pixels.reshape(
+        MAX_LED_COLOR_GRADIENT, MAX_LED_COLOR_GRADIENT, 3
+    )
+
+    if DEBUG:
+        saturated_image.save("debug_saturated_image.png")
+
+        most_colorful_pixels_image = Image.fromarray(
+            most_colorful_pixels.astype(np.uint8), "RGB"
+        )
+        most_colorful_pixels_image.save("debug_preview.png")
+        # raise an exception to stop the program and show the image
+        raise Exception("Debug mode enabled. Stopping program to show image.")
+
+    return most_colorful_pixels
+
+
+class FrameCounter:
+    def __init__(self):
+        self.last_100_fps = []
+        self.start_time = time.time()
+        self.previous_time = time.time()
+
+    def update_and_print(self):
+        elapsed_time = time.time() - self.previous_time
+        self.previous_time = time.time()
+        time_since_start = time.time() - self.start_time
+        fps = 1 / elapsed_time
+        self.last_100_fps = self.last_100_fps[-99:]
+        self.last_100_fps.append(fps)
+        average_fps = (
+            sum(self.last_100_fps) / len(self.last_100_fps) if self.last_100_fps else 0
+        )
+        print(
+            f"\rFPS: {fps:.1f} - Average FPS {average_fps:.1f} - Total Time:{time_since_start:.1f}",
+            end="",
+        )
+
+        return fps
+
+    def reset(self):
+        self.frame_count = 0
+        self.start_time = time.time()
 
 
 def game_loop(devices: list[GoveeLightDevice]):
+    frame_counter = FrameCounter()
     try:
         for device in devices:
             device.power_on()
             time.sleep(0.1)
             device.set_brightness(100)
             time.sleep(0.1)
-            device.set_color(Color(r=55, g=165, b=0))
+            device.set_color(Color())
 
         time.sleep(0.5)
 
@@ -255,12 +350,17 @@ def game_loop(devices: list[GoveeLightDevice]):
         while True:
             screen_colors = capture_screen_and_process_colors()
             for device in devices:
+                selected_rows = screen_colors[device.screen_positions[0], :, :]
+                selected_columns = selected_rows[:, device.screen_positions[1], :]
                 color_data = [
                     Color(r=r, g=g, b=b)
-                    for r, g, b in screen_colors[*device.screen_positions]
+                    for r, g, b in selected_columns.mean(axis=1).astype(int)
                 ]
                 device.set_segment_colors(color_data)
-            time.sleep(0.005)  # 200 FPS
+            frame_counter.update_and_print()
+            time.sleep(1 / 145)  # 144 Hz
+            # write to terminal a fps counter (but don't print it every frame, instead update it in place)
+
     except KeyboardInterrupt:
         print("Operation stopped by user.")
     finally:
@@ -270,14 +370,17 @@ def game_loop(devices: list[GoveeLightDevice]):
             device.power_off()
 
 
+np.take
+
+
 def run():
     left_column_device = GoveeLightDevice(
-        "192.168.0.248", "Govee Light Left", get_column_indices(0)
+        "192.168.0.248", "Govee Light Right", get_device_location_indices([7, 8, 9])
     )
     right_column_device = GoveeLightDevice(
         "192.168.0.108",
-        "Govee Light Right",
-        get_column_indices(MAX_LED_COLOR_GRADIENT - 1),
+        "Govee Light Left",
+        get_device_location_indices([0, 1, 2]),
     )
     devices = [left_column_device, right_column_device]
 
