@@ -55,6 +55,11 @@ class Message(BaseModel):
     msg: Command
 
 
+class DeviceScanCommand(Command):
+    cmd: str = "scan"
+    data: dict[str, str] = {"account_topic": "reserve"}
+
+
 class PowerCommand(Command):
     cmd: str = "turn"
     data: PowerData
