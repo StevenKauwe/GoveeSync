@@ -11,6 +11,7 @@ from govee_screen_sync.models import (
     ColorData,
     Command,
     Message,
+    NetworkedGoveeDevice,
     PowerCommand,
     PowerData,
     PowerState,
@@ -20,10 +21,10 @@ from govee_screen_sync.models import (
 
 
 class GoveeLightDevice:
-    def __init__(self, ip: str, name: str, screen_positions: list[tuple[int, int]]):
-        self.ip = ip
-        self.name = name
-        self.screen_positions = screen_positions
+    def __init__(self, device: NetworkedGoveeDevice):
+        self.ip = device.ip
+        self.name = device.name
+        self.screen_map = device.screen_map
 
     def _send_command(self, command: Command, sleep_time=0.1):
         message = Message(msg=command).model_dump_json()
@@ -98,33 +99,3 @@ class GoveeLightDevice:
         byte_array.append(num2)
         final_send_value = base64.b64encode(bytes(byte_array)).decode()
         return SegmentData(pt=final_send_value)
-
-
-def get_device_location_indices(
-    column_indices: list[int] | None = None, row_indices: list[int] | None = None
-):
-    """
-    screen example for MAX_LED_COLOR_GRADIENT = 10
-
-      column numbers
-      0   1   2   3   4   5   6   7   8   9
-    0 x   x   x   x   x   x   x   x   x   x
-    1 x   x   x   x   x   x   x   x   x   x
-    2 x   x   x   x   x   x   x   x   x   x
-    3 x   x   x   x   x   x   x   x   x   x
-    4 x   x   x   x   x   x   x   x   x   x
-    5 x   x   x   x   x   x   x   x   x   x
-    6 x   x   x   x   x   x   x   x   x   x
-    7 x   x   x   x   x   x   x   x   x   x
-    8 x   x   x   x   x   x   x   x   x   x
-    9 x   x   x   x   x   x   x   x   x   x
-
-    My device has index 0 at the bottom, so I need to reverse the row indices.
-    """
-    if column_indices is None:
-        column_indices = list(range(MAX_LED_COLOR_GRADIENT))
-    if row_indices is None:
-        # light lamp colors are ordered from bottom to top
-        row_indices = list(range(MAX_LED_COLOR_GRADIENT)[::-1])
-    screen_indices = [row_indices, column_indices]
-    return screen_indices

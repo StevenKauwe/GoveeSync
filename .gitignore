@@ -167,3 +167,8 @@ cython_debug/
 
 # macos
 *.DS_Store
+
+*.pyc
+
+# devices.json
+devices.json

@@ -3,7 +3,7 @@ import struct
 import time
 
 from src.govee_screen_sync.light_device import GoveeLightDevice
-from src.govee_screen_sync.models import Color, DeviceScanMessage
+from src.govee_screen_sync.models import Color, DeviceScanMessage, NetworkedGoveeDevice
 
 
 def discover_devices(
@@ -58,7 +58,8 @@ def discover_devices(
 def color_device_by_ip():
     # For each discovered device, create a GoveeLightDevice object
     devices = [
-        GoveeLightDevice(ip, f"Govee Light {i}", []) for i, ip in enumerate(discover_devices())
+        GoveeLightDevice(NetworkedGoveeDevice(ip=ip, name=f"Govee Light {i}", screen_map=[]))
+        for i, ip in enumerate(discover_devices())
     ]
 
     rainbow_rgb = {

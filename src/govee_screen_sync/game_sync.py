@@ -1,5 +1,7 @@
 import time
 
+import numpy as np
+
 from govee_screen_sync.light_device import GoveeLightDevice
 from govee_screen_sync.models import Color
 from govee_screen_sync.screen_capture import capture_screen_and_process_colors
@@ -44,10 +46,11 @@ def game_loop(devices: list[GoveeLightDevice]):
         while True:
             screen_colors = capture_screen_and_process_colors()
             for device in devices:
-                selected_rows = screen_colors[device.screen_positions[0], :, :]
-                selected_columns = selected_rows[:, device.screen_positions[1], :]
                 color_data = [
-                    Color(r=r, g=g, b=b) for r, g, b in selected_columns.mean(axis=1).astype(int)
+                    Color.from_rgb(
+                        screen_colors[(np.array(device.screen_map)) == i].mean(axis=0).astype(int)
+                    )
+                    for i in range(10)
                 ]
                 device.set_segment_colors(color_data)
             frame_counter.update_and_print()

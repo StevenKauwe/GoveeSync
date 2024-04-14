@@ -80,3 +80,13 @@ class DeviceScanCommand(Command):
 
 class DeviceScanMessage(Message):
     msg: DeviceScanCommand = DeviceScanCommand()
+
+
+class NetworkedGoveeDevice(BaseModel):
+    ip: str
+    name: str
+    screen_map: list[list[int]]
+
+
+class NetworkedGoveeDevices(BaseModel):
+    devices: list[NetworkedGoveeDevice]
