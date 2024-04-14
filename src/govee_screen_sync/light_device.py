@@ -79,9 +79,7 @@ class GoveeLightDevice:
         segment_command = SegmentCommand(data=segment_color_data)
         self._send_command(segment_command, sleep_time=0)
 
-    def _get_segment_color_data(
-        self, list_of_colors: list[Color], gradient=True
-    ) -> SegmentData:
+    def _get_segment_color_data(self, list_of_colors: list[Color], gradient=True) -> SegmentData:
         """Returns the SegmentData object for the given list of colors.
 
         The segment data is a base64 encoded string that represents the colors to be set.

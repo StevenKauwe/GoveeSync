@@ -1,0 +1,20 @@
+[
+    {
+        "ip": "192.168.0.xxx",
+        "name": "Govee Light 1",
+        "screen_positions": [
+            0,
+            1,
+            2
+        ]
+    },
+    {
+        "ip": "192.168.0.yyy",
+        "name": "Govee Light 2",
+        "screen_positions": [
+            7,
+            8,
+            9
+        ]
+    }
+]

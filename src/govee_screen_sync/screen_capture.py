@@ -68,10 +68,7 @@ def capture_screen_and_process_colors() -> np.ndarray:
 
     if DEBUG:
         saturated_image.save("debug_saturated_image.png")
-
-        most_colorful_pixels_image = Image.fromarray(
-            most_colorful_pixels.astype(np.uint8), "RGB"
-        )
+        most_colorful_pixels_image = Image.fromarray(most_colorful_pixels.astype(np.uint8), "RGB")
         most_colorful_pixels_image.save("debug_preview.png")
         # raise an exception to stop the program and show the image
         raise Exception("Debug mode enabled. Stopping program to show image.")

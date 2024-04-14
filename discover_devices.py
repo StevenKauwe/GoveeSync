@@ -2,8 +2,8 @@ import socket
 import struct
 import time
 
-from govee_screen_sync.light_device import GoveeLightDevice
-from govee_screen_sync.models import Color, DeviceScanMessage
+from src.govee_screen_sync.light_device import GoveeLightDevice
+from src.govee_screen_sync.models import Color, DeviceScanMessage
 
 
 def discover_devices(
@@ -11,7 +11,7 @@ def discover_devices(
     send_port: int = 4001,
     receive_port: int = 4002,
     message: DeviceScanMessage = DeviceScanMessage(),
-    timeout: int = 2,
+    timeout: int = 1,
     expected_devices: list[GoveeLightDevice] = None,
 ):
     # Set up the sending socket with TTL for multicast
@@ -41,15 +41,11 @@ def discover_devices(
     try:
         while True:
             data, addr = recv_sock.recvfrom(10240)
-            print(
-                f"Received response from {addr}: {data} in {time.time() - ti} seconds."
-            )
+            print(f"Received response from {addr}: {data} in {time.time() - ti} seconds.")
             device_ips.append(addr[0])
 
             # Check if all expected devices have responded
-            if expected_devices and all(
-                device.ip in device_ips for device in expected_devices
-            ):
+            if expected_devices and all(device.ip in device_ips for device in expected_devices):
                 print("All expected devices have responded.")
                 break
     except socket.timeout:
@@ -62,8 +58,7 @@ def discover_devices(
 def color_device_by_ip():
     # For each discovered device, create a GoveeLightDevice object
     devices = [
-        GoveeLightDevice(ip, f"Govee Light {i}", [])
-        for i, ip in enumerate(discover_devices())
+        GoveeLightDevice(ip, f"Govee Light {i}", []) for i, ip in enumerate(discover_devices())
     ]
 
     rainbow_rgb = {
@@ -107,3 +102,7 @@ def color_device_by_ip():
         device.power_off()
 
     return devices
+
+
+if __name__ == "__main__":
+    color_device_by_ip()

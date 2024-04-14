@@ -18,9 +18,7 @@ class FrameCounter:
         fps = 1 / elapsed_time
         self.last_100_fps = self.last_100_fps[-99:]
         self.last_100_fps.append(fps)
-        average_fps = (
-            sum(self.last_100_fps) / len(self.last_100_fps) if self.last_100_fps else 0
-        )
+        average_fps = sum(self.last_100_fps) / len(self.last_100_fps) if self.last_100_fps else 0
         print(
             f"\rFPS: {fps:.1f} - Average FPS {average_fps:.1f} - Total Time:{time_since_start:.1f}",
             end="",
@@ -49,8 +47,7 @@ def game_loop(devices: list[GoveeLightDevice]):
                 selected_rows = screen_colors[device.screen_positions[0], :, :]
                 selected_columns = selected_rows[:, device.screen_positions[1], :]
                 color_data = [
-                    Color(r=r, g=g, b=b)
-                    for r, g, b in selected_columns.mean(axis=1).astype(int)
+                    Color(r=r, g=g, b=b) for r, g, b in selected_columns.mean(axis=1).astype(int)
                 ]
                 device.set_segment_colors(color_data)
             frame_counter.update_and_print()
