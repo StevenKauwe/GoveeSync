@@ -1,8 +1,9 @@
-Here's the updated README with the new device discovery section:
-
 # Govee Screen Sync
 
 Govee Screen Sync is a Python project that synchronizes Govee LED lights with your computer screen, creating an immersive lighting experience. The lights will change colors based on the content displayed on your screen.
+
+## Acknowledgement
+This project builds from the work of https://github.com/strunker/GoveeSync who wrote out all the commands and showed how to use the Govee API. They also found the 'razer' command which is the most importart part, low-latency control of the color segments.
 
 ## Prerequisites
 
